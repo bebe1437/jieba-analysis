@@ -1,12 +1,6 @@
 package com.huaban.analysis.jieba;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +21,7 @@ public class WordDictionary {
     private Double minFreq = Double.MAX_VALUE;
     private Double total = 0.0;
     private static boolean isLoaded = false;
+    private static long userDictFileSize=0l;
 
 
     private WordDictionary() {
@@ -40,7 +35,7 @@ public class WordDictionary {
 
     /**
      * for ES to initialize the user dictionary.
-     * 
+     *
      * @param configFile
      */
     public synchronized void init(File configFile) {
@@ -81,7 +76,7 @@ public class WordDictionary {
                 minFreq = Math.min(entry.getValue().getFreq(), minFreq);
             }
             System.out.println(String.format("main dict load finished, time elapsed %d ms",
-                System.currentTimeMillis() - s));
+                    System.currentTimeMillis() - s));
         }
         catch (IOException e) {
             System.err.println(String.format("%s load failure!", MAIN_DICT));
@@ -98,7 +93,7 @@ public class WordDictionary {
     }
 
 
-    private String addWord(String word) {
+    private synchronized String addWord(String word) {
         TrieNode p = this.trie;
         StringBuilder r = new StringBuilder();
         for (char ch : word.toCharArray()) {
@@ -118,18 +113,33 @@ public class WordDictionary {
     }
 
 
-    public void loadUserDict(File userDict) {
-        InputStream is;
-        try {
-            is = new FileInputStream(userDict);
-        }
-        catch (FileNotFoundException e) {
+    public synchronized void loadUserDict(File userDict) {
+        if(!userDict.exists()){
             System.err.println(String.format("could not find %s", userDict.getAbsolutePath()));
             return;
         }
+
+        long start = System.currentTimeMillis();
+        if(userDictFileSize == 0l){
+            userDictFileSize = userDict.length();
+        }else if(userDictFileSize!=userDict.length()){
+            userDictFileSize = userDict.length();
+        }else{
+            System.out.println(String.format("[%s] userDict keep the same size:%s"
+                    , Thread.currentThread().getName()
+                    , userDictFileSize));
+            System.out.println(String.format("[%s] user dict %s load finished, tot words:%d, time elapsed:%dms"
+                    , Thread.currentThread().getName()
+                    , userDict.getAbsolutePath()
+                    , freqs.size()
+                    , System.currentTimeMillis() - start));
+            return;
+        }
+
+        InputStream is = null;
         try {
+            is = new FileInputStream(userDict);
             BufferedReader br = new BufferedReader(new InputStreamReader(is));
-            long s = System.currentTimeMillis();
             int count = 0;
             while (br.ready()) {
                 String line = br.readLine();
@@ -145,8 +155,11 @@ public class WordDictionary {
                 freqs.put(word, Word.createWord(word, Math.log(freq / total), tokenType));
                 count++;
             }
-            System.out.println(String.format("user dict %s load finished, tot words:%d, time elapsed:%dms",
-                userDict.getAbsolutePath(), count, System.currentTimeMillis() - s));
+            System.out.println(String.format("[%s]user dict %s load finished, tot words:%d, time elapsed:%dms"
+                    , Thread.currentThread().getName()
+                    , userDict.getAbsolutePath()
+                    , count
+                    , System.currentTimeMillis() - start));
         }
         catch (IOException e) {
             System.err.println(String.format("%s: load user dict failure!", userDict.getAbsolutePath()));
