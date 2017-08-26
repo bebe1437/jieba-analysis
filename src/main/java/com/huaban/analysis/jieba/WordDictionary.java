@@ -2,6 +2,8 @@ package com.huaban.analysis.jieba;
 
 import java.io.*;
 import java.nio.charset.Charset;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -18,10 +20,11 @@ public class WordDictionary {
 
     public final TrieNode trie = new TrieNode();
     public final Map<String, Word> freqs = new HashMap<String, Word>();
+    private Calendar calendar = Calendar.getInstance();
     private Double minFreq = Double.MAX_VALUE;
     private Double total = 0.0;
     private static boolean isLoaded = false;
-    private static long userDictFileSize=0l;
+    private static long lastModifiedTimestamp=0l;
 
 
     private WordDictionary() {
@@ -119,15 +122,19 @@ public class WordDictionary {
             return;
         }
 
+        //Watch userDict if changed or not
         long start = System.currentTimeMillis();
-        if(userDictFileSize == 0l){
-            userDictFileSize = userDict.length();
-        }else if(userDictFileSize!=userDict.length()){
-            userDictFileSize = userDict.length();
+        if(lastModifiedTimestamp == 0l){
+            lastModifiedTimestamp = userDict.lastModified();
+        }else if(lastModifiedTimestamp!=userDict.lastModified()){
+            lastModifiedTimestamp = userDict.lastModified();
         }else{
-            System.out.println(String.format("[%s] userDict keep the same size:%s"
+
+            calendar.setTimeInMillis(lastModifiedTimestamp);
+            String timeStamp = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(calendar.getTime());
+            System.out.println(String.format("[%s] userDict not changed since:%s"
                     , Thread.currentThread().getName()
-                    , userDictFileSize));
+                    , timeStamp)));
             System.out.println(String.format("[%s] user dict %s load finished, tot words:%d, time elapsed:%dms"
                     , Thread.currentThread().getName()
                     , userDict.getAbsolutePath()
