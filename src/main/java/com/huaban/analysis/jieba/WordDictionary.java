@@ -120,31 +120,37 @@ public class WordDictionary {
         return r.toString();
     }
 
+    private boolean isModified(File userDict){
+        //Watch userDict if changed or not
+        long start = System.currentTimeMillis();
+        if(lastModifiedTimestamp == 0l){
+            lastModifiedTimestamp = userDict.lastModified();
+            return true;
+        }
+        if(lastModifiedTimestamp!=userDict.lastModified()){
+            lastModifiedTimestamp = userDict.lastModified();
+            return true;
+        }
+
+        calendar.setTimeInMillis(lastModifiedTimestamp);
+        String timeStamp = new SimpleDateFormat(" MM/dd/yyyy HH:mm:ss").format(calendar.getTime());
+        System.out.println(String.format("[%s] user dict not changed since:%s, tot words:%d, time elapsed:%dms"
+                , Thread.currentThread().getName()
+                , timeStamp
+                , freqs.size()
+                , System.currentTimeMillis() - start));
+        return false;
+    }
 
     public synchronized void loadUserDict(File userDict) {
         if(!userDict.exists()){
             System.err.println(String.format("could not find %s", userDict.getAbsolutePath()));
             return;
         }
-
-        //Watch userDict if changed or not
-        long start = System.currentTimeMillis();
-        if(lastModifiedTimestamp == 0l){
-            lastModifiedTimestamp = userDict.lastModified();
-        }else if(lastModifiedTimestamp!=userDict.lastModified()){
-            lastModifiedTimestamp = userDict.lastModified();
-        }else{
-
-            calendar.setTimeInMillis(lastModifiedTimestamp);
-            String timeStamp = new SimpleDateFormat(" MM/dd/yyyy HH:mm:ss").format(calendar.getTime());
-            System.out.println(String.format("[%s] user dict not changed since:%s, tot words:%d, time elapsed:%dms"
-                    , Thread.currentThread().getName()
-                    , timeStamp
-                    , freqs.size()
-                    , System.currentTimeMillis() - start));
+        if(!isModified(userDict)){
             return;
         }
-
+        long start = System.currentTimeMillis();
         InputStream is = null;
         try {
             is = new FileInputStream(userDict);

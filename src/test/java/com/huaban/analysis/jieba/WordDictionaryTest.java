@@ -16,7 +16,7 @@ import java.util.concurrent.Future;
 public class WordDictionaryTest extends TestCase {
 
     private static final String TERM="豐碩";
-    private static final String FILE_PATH="conf/dict_big.txt";
+    private static final String FILE_PATH="src/test/resources/dict_big.txt";
     private File file;
 
     @Before
@@ -26,21 +26,8 @@ public class WordDictionaryTest extends TestCase {
         //WordDictionary.getInstance().init(new File("conf"));
     }
 
-    private boolean test(){
-        WordDictionary.getInstance().loadUserDict(file);
-        boolean isContainsWord = WordDictionary.getInstance().containsWord(TERM);
-        assertTrue(isContainsWord);
-        return isContainsWord;
-    }
     @Test
-    public void test01_singleThread(){
-        WordDictionary.getInstance().loadUserDict(file);
-        boolean isContainsWord = WordDictionary.getInstance().containsWord(TERM);
-        assertTrue(isContainsWord);
-    }
-
-    @Test
-    public void test02_multiThread(){
+    public void test_multiThread(){
         int threadSize= 10;
         ExecutorService service = Executors.newCachedThreadPool();
         List<Future<?>> futures = new ArrayList<Future<?>>();
