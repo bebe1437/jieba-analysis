@@ -20,11 +20,11 @@ public class WordDictionary {
 
     public final TrieNode trie = new TrieNode();
     public final Map<String, Word> freqs = new HashMap<String, Word>();
-    private Calendar calendar = Calendar.getInstance();
     private Double minFreq = Double.MAX_VALUE;
     private Double total = 0.0;
     private static boolean isLoaded = false;
-    private static long lastModifiedTimestamp=0l;
+    private long lastModifiedTimestamp=0l;
+    private Calendar calendar = Calendar.getInstance();
 
 
     private WordDictionary() {
@@ -52,34 +52,18 @@ public class WordDictionary {
         }
     }
 
-
     public void loadDict() {
         InputStream is = this.getClass().getResourceAsStream(MAIN_DICT);
         try {
-            BufferedReader br = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
-
-            long s = System.currentTimeMillis();
-            while (br.ready()) {
-                String line = br.readLine();
-                String[] tokens = line.split("[\t ]+");
-
-                if (tokens.length < 3)
-                    continue;
-
-                String word = tokens[0];
-                String tokenType = tokens[2];
-                double freq = Double.valueOf(tokens[1]);
-                total += freq;
-                word = addWord(word);
-                freqs.put(word, Word.createWord(word, freq, tokenType));
-            }
+            long start = System.currentTimeMillis();
+            putFreqs(is);
             // normalize
             for (Entry<String, Word> entry : freqs.entrySet()) {
                 entry.getValue().setFreq(Math.log(entry.getValue().getFreq() / total));
                 minFreq = Math.min(entry.getValue().getFreq(), minFreq);
             }
             System.out.println(String.format("main dict load finished, time elapsed %d ms",
-                    System.currentTimeMillis() - s));
+                    System.currentTimeMillis() - start));
         }
         catch (IOException e) {
             System.err.println(String.format("%s load failure!", MAIN_DICT));
@@ -95,8 +79,29 @@ public class WordDictionary {
         }
     }
 
+    private int putFreqs(InputStream is) throws IOException{
+        int count=0;
+        BufferedReader br = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
+        while (br.ready()) {
+            String line = br.readLine();
+            String[] tokens = line.split("[\t ]+");
 
-    private synchronized String addWord(String word) {
+            if (tokens.length < 3)
+                continue;
+
+            String word = tokens[0];
+            String tokenType = tokens[2];
+            double freq = Double.valueOf(tokens[1]);
+            total += freq;
+            count++;
+            word = addWord(word);
+            freqs.put(word, Word.createWord(word, freq, tokenType));
+        }
+        return count;
+    }
+
+
+    private String addWord(String word) {
         TrieNode p = this.trie;
         StringBuilder r = new StringBuilder();
         for (char ch : word.toCharArray()) {
@@ -131,13 +136,10 @@ public class WordDictionary {
         }else{
 
             calendar.setTimeInMillis(lastModifiedTimestamp);
-            String timeStamp = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss").format(calendar.getTime());
-            System.out.println(String.format("[%s] userDict not changed since:%s"
+            String timeStamp = new SimpleDateFormat(" MM/dd/yyyy HH:mm:ss").format(calendar.getTime());
+            System.out.println(String.format("[%s] user dict not changed since:%s, tot words:%d, time elapsed:%dms"
                     , Thread.currentThread().getName()
-                    , timeStamp)));
-            System.out.println(String.format("[%s] user dict %s load finished, tot words:%d, time elapsed:%dms"
-                    , Thread.currentThread().getName()
-                    , userDict.getAbsolutePath()
+                    , timeStamp
                     , freqs.size()
                     , System.currentTimeMillis() - start));
             return;
@@ -146,25 +148,10 @@ public class WordDictionary {
         InputStream is = null;
         try {
             is = new FileInputStream(userDict);
-            BufferedReader br = new BufferedReader(new InputStreamReader(is));
-            int count = 0;
-            while (br.ready()) {
-                String line = br.readLine();
-                String[] tokens = line.split("[\t ]+");
-
-                if (tokens.length < 3)
-                    continue;
-
-                String word = tokens[0];
-                String tokenType = tokens[2];
-                double freq = Double.valueOf(tokens[1]);
-                word = addWord(word);
-                freqs.put(word, Word.createWord(word, Math.log(freq / total), tokenType));
-                count++;
-            }
-            System.out.println(String.format("[%s]user dict %s load finished, tot words:%d, time elapsed:%dms"
+            int count = putFreqs(is);
+            System.out.println(userDict.getAbsolutePath());
+            System.out.println(String.format("[%s] user dict load finished, total words:%d, time elapsed:%dms"
                     , Thread.currentThread().getName()
-                    , userDict.getAbsolutePath()
                     , count
                     , System.currentTimeMillis() - start));
         }
